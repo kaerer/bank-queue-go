@@ -31,13 +31,13 @@ func createCustomer(id uint, tasks []Task) *Customer {
 }
 
 func (c *Customer) onCreated() {
-	Announce(Event{EVENT_CUSTOMER_CREATED, c})
+	Announce(Event{EVENT_CUSTOMER_CREATED, c.Id})
 	c.Status = CustomerStatusActive
 	c.TimeAdd = time.Now()
 }
 
 func (c *Customer) onDone() {
-	Announce(Event{EVENT_CUSTOMER_DONE, c})
+	Announce(Event{EVENT_CUSTOMER_DONE, c.Id})
 	c.Status = CustomerStatusCompleted
 	c.TimeLeave = time.Now()
 }

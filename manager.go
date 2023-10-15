@@ -8,9 +8,10 @@ import (
 )
 
 const (
-	EVENT_MANAGER_INIT    string = ".MANAGER.INIT"
-	EVENT_MANAGER_STARTED string = ".MANAGER.STARTED"
-	EVENT_MANAGER_STOPPED string = ".MANAGER.STOPED"
+	EVENT_MANAGER_INIT         string = ".MANAGER.INIT"
+	EVENT_MANAGER_STARTED      string = ".MANAGER.STARTED"
+	EVENT_MANAGER_STOPPED      string = ".MANAGER.STOPED"
+	EVENT_MANAGER_WORKER_FOUND string = ".MANAGER.WORKER.FOUND"
 )
 
 const (
@@ -29,11 +30,17 @@ type Manager struct {
 func createManager(workerAmount int, existingCustomers []Customer, startCustomerIndex int) *Manager {
 	m := new(Manager)
 	m.Queue = *createQueue(make([]Customer, 0), 0)
+	m.Queue.CurrentCustomerIndex = startCustomerIndex
 	m.WorkerAmount = workerAmount
-	m.Workers = make([]Worker, 0)
+	if existingCustomers != nil {
+		m.Queue.addMultipleCustomer(existingCustomers)
+	}
 
 	// add workers
+	m.Workers = make([]Worker, 0)
 	for i := 0; i < workerAmount; i++ {
+		log.Println(i)
+
 		worker := *createWorker(uint(i))
 		worker.enable()
 		m.Workers = append(m.Workers, worker)
@@ -43,33 +50,30 @@ func createManager(workerAmount int, existingCustomers []Customer, startCustomer
 
 func (m *Manager) init() {
 	Signal(EVENT_MANAGER_INIT)
-	customers := m.createDemo(10)
-	m.Queue.addMultipleCustomer(customers)
+	// customers := m.createDemo(10)
+	// m.Queue.addMultipleCustomer(customers)
 }
 
-func (m *Manager) createDemo(customerAmount int) []Customer {
-	customers := make([]Customer, 0)
-	for i := 0; i < customerAmount; i++ {
-		var tasks = make([]Task, 0)
-		idStr := strconv.Itoa(i)
-		tasks = append(tasks, *createTask(idStr+"-1", "", 1)) // rand.Intn(5)
-		tasks = append(tasks, *createTask(idStr+"-2", "", 1)) // rand.Intn(5)
-		customer := *createCustomer(uint(i), tasks)
-		customers = append(customers, customer)
-	}
-	//TODO: generate customers with tasks for testing
-	return customers
-}
+// var previousIndex int = 0
 
-func (m Manager) getAvailableWorker() (*Worker, error) {
+func (m *Manager) getAvailableWorker() (*Worker, error) {
+	// var worker Worker
+	// if previousIndex == 0 {
+	// 	previousIndex = 1
+	// } else {
+	// 	previousIndex = 0
+	// }
+	// worker = m.Workers[previousIndex]
+	// Announce(Event{EVENT_MANAGER_WORKER_FOUND, worker.Id})
+	// return &worker, nil
+
 	if len(m.Workers) > 0 {
 		for _, worker := range m.Workers {
 			if worker.isAvailable() {
-				log.Println("worker found")
+				Announce(Event{EVENT_MANAGER_WORKER_FOUND, worker.Id})
 				return &worker, nil
 			}
 		}
-		log.Println("worker not found")
 		return nil, nil
 	}
 
@@ -86,6 +90,7 @@ func (m *Manager) start() {
 
 	var step int = 0
 	for {
+		log.Println("Step: " + strconv.Itoa(step))
 
 		if m.Status != ManagerStatusActive {
 			break
@@ -106,6 +111,8 @@ func (m *Manager) start() {
 			} else {
 				log.Println("no customer added")
 			}
+
+			break
 		}
 
 		worker, err := m.getAvailableWorker()
@@ -114,29 +121,31 @@ func (m *Manager) start() {
 			log.Println(err)
 			break
 		}
-		if worker == nil {
-			log.Println("no worker defined")
-		}
 
 		if worker == nil {
+			log.Println("no worker defined")
 			continue
 		}
 
-		if customer == nil {
-			m.stop()
-		}
+		error := worker.assignCustomer(customer)
 
-		m.wg.Add(1)
-		go func(step int, worker Worker, customer Customer) {
-			worker.setCustomer(&customer)
-			worker.work()
-			defer m.wg.Done()
-			log.Println("'LIST'", customer.Id, worker.Id)
-		}(step, *worker, *customer)
+		if error == nil {
+			m.wg.Add(1)
+			go func() {
+				worker.work()
+				defer m.wg.Done()
+				log.Println("'Results:' customer id: ", customer.Id, " worker id: ", worker.Id)
+			}()
+		} else {
+			log.Println("Worker ERROR:")
+			log.Println(error)
+			break
+		}
 
 	}
 
 	m.wg.Wait()
+	m.stop()
 }
 
 func (m *Manager) stop() {
