@@ -8,16 +8,14 @@ const (
 )
 
 type Queue struct {
-	CurrentCustomerIndex  int
-	Customers             []Customer
-	WaitingCustomerAmount int
+	CurrentCustomerIndex int
+	Customers            []Customer
 }
 
 func createQueue(existingCustomers []Customer, startCustomerIndex int) *Queue {
 	q := new(Queue)
 	q.Customers = existingCustomers
 	q.CurrentCustomerIndex = startCustomerIndex
-	q.WaitingCustomerAmount = len(q.Customers)
 	Signal(EVENT_QUEUE_CREATED)
 	return q
 }

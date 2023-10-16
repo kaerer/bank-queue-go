@@ -1,6 +1,8 @@
 package main
 
-import "errors"
+import (
+	"errors"
+)
 
 const (
 	EVENT_WORKER_CREATED        string = ".WORKER.CREATED"
@@ -28,7 +30,7 @@ func createWorker(id uint) *Worker {
 	w := new(Worker)
 	w.Id = id
 	w.CurrentCustomer = nil
-	w.Status = WorkerStatusIdle
+	w.Status = WorkerStatusPassive
 	Announce(Event{EVENT_WORKER_CREATED, w})
 	return w
 }
@@ -39,9 +41,8 @@ func (w *Worker) work() {
 	for _, task := range tasks {
 		task.run()
 	}
-	w.onTasksCompleted()
 	w.CurrentCustomer.onDone()
-	w.CurrentCustomer = nil
+	w.onTasksCompleted()
 }
 
 func (w *Worker) assignCustomer(customer *Customer) error {
@@ -76,4 +77,5 @@ func (w *Worker) onTasksStarted() {
 func (w *Worker) onTasksCompleted() {
 	Announce(Event{EVENT_WORKER_TASK_COMPLETED, []uint{w.Id, w.CurrentCustomer.Id}})
 	w.Status = WorkerStatusIdle
+	w.CurrentCustomer = nil
 }

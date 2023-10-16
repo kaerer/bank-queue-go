@@ -3,7 +3,6 @@ package main
 import (
 	"errors"
 	"log"
-	"strconv"
 	"sync"
 )
 
@@ -21,7 +20,7 @@ const (
 
 type Manager struct {
 	WorkerAmount int
-	Workers      []Worker
+	Workers      []*Worker
 	Queue        Queue
 	Status       StatusType
 	wg           sync.WaitGroup
@@ -37,11 +36,9 @@ func createManager(workerAmount int, existingCustomers []Customer, startCustomer
 	}
 
 	// add workers
-	m.Workers = make([]Worker, 0)
+	m.Workers = make([]*Worker, 0)
 	for i := 0; i < workerAmount; i++ {
-		log.Println(i)
-
-		worker := *createWorker(uint(i))
+		worker := createWorker(uint(i))
 		worker.enable()
 		m.Workers = append(m.Workers, worker)
 	}
@@ -71,7 +68,7 @@ func (m *Manager) getAvailableWorker() (*Worker, error) {
 		for _, worker := range m.Workers {
 			if worker.isAvailable() {
 				Announce(Event{EVENT_MANAGER_WORKER_FOUND, worker.Id})
-				return &worker, nil
+				return worker, nil
 			}
 		}
 		return nil, nil
@@ -90,13 +87,24 @@ func (m *Manager) start() {
 
 	var step int = 0
 	for {
-		log.Println("Step: " + strconv.Itoa(step))
+		// log.Println("Step: " + strconv.Itoa(step))
 
 		if m.Status != ManagerStatusActive {
 			break
 		}
 
 		step++
+
+		worker, err := m.getAvailableWorker()
+		if err != nil {
+			log.Println("Worker ERROR:")
+			log.Println(err)
+			break
+		}
+
+		if worker == nil {
+			continue
+		}
 
 		customer, customerAmount, err := m.Queue.getNextCustomer()
 		if err != nil {
@@ -115,33 +123,19 @@ func (m *Manager) start() {
 			break
 		}
 
-		worker, err := m.getAvailableWorker()
-		if err != nil {
-			log.Println("Worker ERROR:")
-			log.Println(err)
-			break
-		}
-
-		if worker == nil {
-			log.Println("no worker defined")
-			continue
-		}
-
 		error := worker.assignCustomer(customer)
-
 		if error == nil {
 			m.wg.Add(1)
-			go func() {
+			go func(worker *Worker, customer *Customer, m *Manager) {
 				worker.work()
 				defer m.wg.Done()
 				log.Println("'Results:' customer id: ", customer.Id, " worker id: ", worker.Id)
-			}()
+			}(worker, customer, m)
 		} else {
 			log.Println("Worker ERROR:")
 			log.Println(error)
 			break
 		}
-
 	}
 
 	m.wg.Wait()

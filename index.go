@@ -27,12 +27,12 @@ func createDemo(customerAmount int) []Customer {
 
 func main() {
 
-	customers := createDemo(10)
-	m := *createManager(2, customers, 0)
+	customers := createDemo(20)
+	m := *createManager(5, customers, 0)
 
-	Verbosity = 1
+	Verbosity = 0
 
-	//- listen
+	// - listen
 	chn := Listen(EVENT_MANAGER_ALL)
 	go func() {
 		i := 0
