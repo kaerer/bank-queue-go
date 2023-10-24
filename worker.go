@@ -9,6 +9,7 @@ const (
 	EVENT_WORKER_ENABLED        string = ".WORKER.ENABLED"
 	EVENT_WORKER_DISABLED       string = ".WORKER.DISABLED"
 	EVENT_WORKER_ASSIGNED       string = ".WORKER.ASSIGNED"
+	EVENT_WORKER_TASK_LAST      string = ".WORKER.TASK.LAST"
 	EVENT_WORKER_TASK_STARTED   string = ".WORKER.TASK.STARTED"
 	EVENT_WORKER_TASK_COMPLETED string = ".WORKER.TASK.COMPLETED"
 )
@@ -47,7 +48,7 @@ func (w *Worker) work() {
 
 func (w *Worker) assignCustomer(customer *Customer) error {
 	if w.CurrentCustomer != nil {
-		return errors.New("CurrentCustomer is already assigned")
+		return errors.New("Worker is already assigned for customer")
 	}
 	Announce(Event{EVENT_WORKER_ASSIGNED, []uint{w.Id, customer.Id}})
 	w.Status = WorkerStatusAssigned
@@ -65,6 +66,12 @@ func (w *Worker) enable() {
 }
 
 func (w *Worker) disable() {
+	// for {
+	// 	if w.Status == WorkerStatusIdle {
+	// 		break
+	// 	}
+	// 	Announce(Event{EVENT_WORKER_TASK_LAST, w.Id})
+	// }
 	Announce(Event{EVENT_WORKER_DISABLED, w.Id})
 	w.Status = WorkerStatusPassive
 }

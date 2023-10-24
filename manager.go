@@ -7,10 +7,11 @@ import (
 )
 
 const (
-	EVENT_MANAGER_INIT         string = ".MANAGER.INIT"
-	EVENT_MANAGER_STARTED      string = ".MANAGER.STARTED"
-	EVENT_MANAGER_STOPPED      string = ".MANAGER.STOPED"
-	EVENT_MANAGER_WORKER_FOUND string = ".MANAGER.WORKER.FOUND"
+	EVENT_MANAGER_INIT               string = ".MANAGER.INIT"
+	EVENT_MANAGER_STARTED            string = ".MANAGER.STARTED"
+	EVENT_MANAGER_STOPPED            string = ".MANAGER.STOPED"
+	EVENT_MANAGER_WORKER_FOUND       string = ".MANAGER.WORKER.FOUND"
+	EVENT_MANAGER_CUSTOMER_NOT_FOUNT string = ".MANAGER.CUSTOMER.NOT.FOUND"
 )
 
 const (
@@ -47,23 +48,9 @@ func createManager(workerAmount int, existingCustomers []Customer, startCustomer
 
 func (m *Manager) init() {
 	Signal(EVENT_MANAGER_INIT)
-	// customers := m.createDemo(10)
-	// m.Queue.addMultipleCustomer(customers)
 }
 
-// var previousIndex int = 0
-
 func (m *Manager) getAvailableWorker() (*Worker, error) {
-	// var worker Worker
-	// if previousIndex == 0 {
-	// 	previousIndex = 1
-	// } else {
-	// 	previousIndex = 0
-	// }
-	// worker = m.Workers[previousIndex]
-	// Announce(Event{EVENT_MANAGER_WORKER_FOUND, worker.Id})
-	// return &worker, nil
-
 	if len(m.Workers) > 0 {
 		for _, worker := range m.Workers {
 			if worker.isAvailable() {
@@ -106,7 +93,7 @@ func (m *Manager) start() {
 			continue
 		}
 
-		customer, customerAmount, err := m.Queue.getNextCustomer()
+		customer, _, err := m.Queue.getNextCustomer()
 		if err != nil {
 			log.Println("Customer ERROR:")
 			log.Println(err)
@@ -114,12 +101,7 @@ func (m *Manager) start() {
 		}
 
 		if customer == nil {
-			if customerAmount > 0 {
-				log.Println("no customer left")
-			} else {
-				log.Println("no customer added")
-			}
-
+			Signal(EVENT_MANAGER_CUSTOMER_NOT_FOUNT)
 			break
 		}
 
@@ -129,7 +111,7 @@ func (m *Manager) start() {
 			go func(worker *Worker, customer *Customer, m *Manager) {
 				worker.work()
 				defer m.wg.Done()
-				log.Println("'Results:' customer id: ", customer.Id, " worker id: ", worker.Id)
+				log.Println("Results: customer id: ", customer.Id, " customer group: ", customer.Group, " worker id: ", worker.Id)
 			}(worker, customer, m)
 		} else {
 			log.Println("Worker ERROR:")
@@ -143,11 +125,12 @@ func (m *Manager) start() {
 }
 
 func (m *Manager) stop() {
+	m.Status = ManagerStatusPassive
 	if len(m.Workers) > 0 {
 		for _, worker := range m.Workers {
 			worker.disable()
 		}
 	}
 
-	m.Status = ManagerStatusPassive
+	Signal(EVENT_MANAGER_STOPPED)
 }

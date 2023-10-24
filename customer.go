@@ -13,17 +13,27 @@ const (
 	CustomerStatusCompleted StatusType = 2
 )
 
+const (
+	CustomerGroupA CustomerGroupType = 0
+	CustomerGroupB CustomerGroupType = 1
+)
+
 type Customer struct {
 	Id        uint
 	Status    StatusType
+	Group     CustomerGroupType
 	Tasks     []Task
 	TimeAdd   time.Time
 	TimeLeave time.Time
 }
 
-func createCustomer(id uint, tasks []Task) *Customer {
+var maxCustomerId uint = 0
+
+func createCustomer(group CustomerGroupType, tasks []Task) *Customer {
+	maxCustomerId++
+
 	c := new(Customer)
-	c.Id = id
+	c.Id = maxCustomerId
 	c.Tasks = tasks
 	c.Status = CustomerStatusWaiting
 	c.onCreated()
