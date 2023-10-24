@@ -8,12 +8,21 @@ import (
 	"time"
 )
 
-const (
-	EVENT_ALL string = "."
-)
+// - Settings
+const workerAmount int = 15
+const initialCustomerAmount int = 150
 
 const maxTaskAmount int = 5
 const maxTaskWorkTimeInSeconds int = 3
+
+const newCustomerPeriodInSeconds int = 5
+const newCustomerAmountInPeriod int = 1
+
+// - ----
+
+const (
+	EVENT_ALL string = "."
+)
 
 func getRandomCount(max int) int {
 	return rand.Intn(max-1) + 1
@@ -39,26 +48,28 @@ var wg sync.WaitGroup
 
 func main() {
 	Verbosity = 0
-	customers := createDemo(15, CustomerGroupA)
-	m = *createManager(5, customers, 0)
+	customers := createDemo(initialCustomerAmount, CustomerGroupA)
+	m = *createManager(workerAmount, customers, 0)
 
-	wg.Add(1)
-	go func() {
-		for range time.Tick(time.Second * 5) {
-			if m.Status != ManagerStatusActive {
-				log.Println("Doors are CLOSED")
-				defer wg.Done()
-				break
+	if newCustomerPeriodInSeconds > 0 {
+		wg.Add(1)
+		go func() {
+			for range time.Tick(time.Second * time.Duration(newCustomerPeriodInSeconds)) {
+				if m.Status != ManagerStatusActive {
+					log.Println("Doors are CLOSED")
+					defer wg.Done()
+					break
+				}
+
+				log.Println("New Customer Entered")
+				newCustomer()
 			}
-
-			log.Println("New Customer Entered")
-			newCustomer()
-		}
-	}()
+		}()
+	}
 
 	wg.Add(1)
 	go func() {
-		//-listen
+		// listen all event
 		chn := Listen(EVENT_ALL)
 		wg.Add(1)
 		go func() {
@@ -88,6 +99,6 @@ func main() {
 }
 
 func newCustomer() {
-	customers := createDemo(1, CustomerGroupB)
+	customers := createDemo(newCustomerAmountInPeriod, CustomerGroupB)
 	m.Queue.addMultipleCustomer(customers)
 }
