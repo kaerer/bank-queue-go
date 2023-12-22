@@ -4,6 +4,7 @@ import (
 	"errors"
 	"log"
 	"sync"
+	"time"
 )
 
 const (
@@ -12,6 +13,8 @@ const (
 	EVENT_MANAGER_STOPPED            string = ".MANAGER.STOPED"
 	EVENT_MANAGER_WORKER_FOUND       string = ".MANAGER.WORKER.FOUND"
 	EVENT_MANAGER_CUSTOMER_NOT_FOUNT string = ".MANAGER.CUSTOMER.NOT.FOUND"
+	EVENT_MANAGER_WAITING            string = ".MANAGER.WAITING"
+	EVENT_MANAGER_ENDED              string = ".MANAGER.ENDED"
 )
 
 const (
@@ -20,18 +23,20 @@ const (
 )
 
 type Manager struct {
-	WorkerAmount int
-	Workers      []*Worker
-	Queue        Queue
-	Status       StatusType
-	wg           sync.WaitGroup
+	WorkerAmount      int
+	workTimeInSeconds int
+	Workers           []*Worker
+	Queue             Queue
+	Status            StatusType
+	wg                sync.WaitGroup
 }
 
-func createManager(workerAmount int, existingCustomers []Customer, startCustomerIndex int) *Manager {
+func createManager(workTimeInSeconds int, workerAmount int, existingCustomers []Customer, startCustomerIndex int) *Manager {
 	m := new(Manager)
 	m.Queue = *createQueue(make([]Customer, 0), 0)
 	m.Queue.CurrentCustomerIndex = startCustomerIndex
 	m.WorkerAmount = workerAmount
+	m.workTimeInSeconds = workTimeInSeconds
 	if existingCustomers != nil {
 		m.Queue.addMultipleCustomer(existingCustomers)
 	}
@@ -69,6 +74,7 @@ func (m *Manager) start() {
 	m.Status = ManagerStatusActive
 	Signal(EVENT_MANAGER_STARTED)
 
+	var startWorkTimeStamp int64 = time.Now().Unix()
 	// check if any waiting user in the queue, if not wait for more? or just stop
 	// wait for any worker to be free back if there is any
 
@@ -100,9 +106,18 @@ func (m *Manager) start() {
 			break
 		}
 
-		if customer == nil {
-			Signal(EVENT_MANAGER_CUSTOMER_NOT_FOUNT)
+		var currentWorkTimeStamp int64 = time.Now().Unix()
+		if startWorkTimeStamp+int64(m.workTimeInSeconds) < currentWorkTimeStamp {
+			Signal(EVENT_MANAGER_ENDED)
 			break
+		}
+
+		if customer == nil {
+			Signal(EVENT_MANAGER_WAITING)
+			time.Sleep(time.Duration(1 * time.Second))
+			continue
+			// Signal(EVENT_MANAGER_CUSTOMER_NOT_FOUNT)
+			// break
 		}
 
 		error := worker.assignCustomer(customer)

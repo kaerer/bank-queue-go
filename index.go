@@ -10,12 +10,13 @@ import (
 
 // - Settings
 const workerAmount int = 15
-const initialCustomerAmount int = 150
+const initialCustomerAmount int = 5
+const workTimeInSeconds int = 10
 
 const maxTaskAmount int = 5
-const maxTaskWorkTimeInSeconds int = 3
+const maxTaskWorkTimeInSeconds int = 2
 
-const newCustomerPeriodInSeconds int = 5
+const newCustomerPeriodInSeconds int = 1
 const newCustomerAmountInPeriod int = 1
 
 // - ----
@@ -25,6 +26,9 @@ const (
 )
 
 func getRandomCount(max int) int {
+	if max-1 <= 0 {
+		return 1
+	}
 	return rand.Intn(max-1) + 1
 }
 
@@ -49,7 +53,7 @@ var wg sync.WaitGroup
 func main() {
 	Verbosity = 0
 	customers := createDemo(initialCustomerAmount, CustomerGroupA)
-	m = *createManager(workerAmount, customers, 0)
+	m = *createManager(workTimeInSeconds, workerAmount, customers, 0)
 
 	if newCustomerPeriodInSeconds > 0 {
 		wg.Add(1)
